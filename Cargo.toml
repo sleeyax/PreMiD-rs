@@ -7,10 +7,11 @@ edition = "2021"
 
 [dependencies]
 axum = "0.6.18"
-discord-rpc-client = "0.3.0"
 serde = { version = "1.0.164",  features = ["derive"] }
 serde_json = "1.0.96"
 socketioxide = {path = "../socketioxide/socketioxide", features = ["v4"], default-features = false}
 tokio = {version = "1.28.2", features = ["full"] }
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
 tracing = "0.1.37"
+discord-presence = "0.5.15"
+ctrlc = "3.4.0"
