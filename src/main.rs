@@ -1,16 +1,16 @@
+use std::sync::Arc;
+
 use axum::routing::get;
 use axum::Server;
 use serde_json::Value;
 use socketioxide::{Namespace, SocketIoLayer};
-use std::{
-    default,
-    sync::{Arc, Mutex},
-};
+
+use tokio::sync::Mutex;
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 
 use crate::{
-    constants::{APP_VERSION, DEFAULT_ADDRESS, DEFAULT_CLIENT_ID, REPO_URL},
+    constants::{APP_VERSION, DEFAULT_ADDRESS, REPO_URL},
     rpc_client::RpcClient,
     rpc_client_manager::RpcClientManager,
     settings::Settings,
@@ -31,18 +31,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .finish();
     tracing::subscriber::set_global_default(subscriber)?;
 
-    let rpc_client_manager = Arc::new(Mutex::new(RpcClientManager::new()));
-
     info!("Starting server on http://{}", DEFAULT_ADDRESS);
 
-    let rpc_client_manager_clone = Arc::clone(&rpc_client_manager);
+    let manager = Arc::new(Mutex::new(RpcClientManager::new()));
+
     let ns = Namespace::builder()
         .add("/", move |socket| {
-            let rpc_client_manager = Arc::clone(&rpc_client_manager_clone);
+            println!("Socket connected with id: {}", socket.sid);
+
+            let manager_clone = Arc::clone(&manager);
 
             async move {
-                println!("Socket connected with id: {}", socket.sid);
-
                 socket.on("getVersion", |socket, data: Value, bin, _| async move {
                     println!("getVersion: {:?} {:?}", data, bin);
                     socket
@@ -55,44 +54,47 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     println!("settingUpdate: {:?} {:?}", data, bin);
                 });
 
-                let rpc_client_manager_clone = Arc::clone(&rpc_client_manager);
+                let manager = Arc::clone(&manager_clone);
                 socket.on("setActivity", move |_, data: Presence, bin, _| {
-                    println!("setActivity: {:?} {:?}", &data, bin);
+                    println!("setActivity: {:?} {:?}", data, bin);
+
+                    let manager = Arc::clone(&manager);
 
                     let client_id: u64 = data.client_id.parse().unwrap();
 
-                    let rpc_client_manager_clone = Arc::clone(&rpc_client_manager_clone);
-
                     async move {
-                        let mut rpc_client_manager = rpc_client_manager_clone.lock().unwrap();
-                        if let Some(rpc_client) = rpc_client_manager.get_client_mut(client_id) {
-                            rpc_client.set_activity(data);
-                        } else {
-                            let mut rpc_client = RpcClient::new(client_id);
-                            rpc_client.set_activity(data);
-                            rpc_client_manager.add_client_instance(rpc_client);
-                        }
+                        tokio::spawn(async move {
+                            let mut manager = manager.lock().await;
+                            if let Some(rpc_client) = manager.get_client_mut(client_id) {
+                                rpc_client.set_activity(data);
+                            } else {
+                                let mut rpc_client = RpcClient::new(client_id);
+                                rpc_client.set_activity(data);
+                                manager.add_client(rpc_client);
+                            }
+                        });
                     }
                 });
 
-                let rpc_client_manager_clone = Arc::clone(&rpc_client_manager);
+                let manager = Arc::clone(&manager_clone);
                 socket.on("clearActivity", move |_, data: Value, bin, _| {
                     println!("clearActivity: {:?} {:?}", data, bin);
 
-                    let rpc_client_manager_clone = Arc::clone(&rpc_client_manager_clone);
+                    let manager = Arc::clone(&manager);
 
                     async move {
-                        for rpc_client in rpc_client_manager_clone.lock().unwrap().get_clients_mut()
-                        {
-                            rpc_client.clear_activity();
-                        }
+                        tokio::spawn(async move {
+                            let mut manager = manager.lock().await;
+                            manager.clear_all_activities();
+                        });
                     }
                 });
 
-                // TODO: spawn in separate thread for performance?
-                socket
-                    .emit("discordUser", RpcClient::default().get_user())
-                    .ok();
+                tokio::spawn(async move {
+                    socket
+                        .emit("discordUser", RpcClient::default().get_user())
+                        .ok();
+                });
             }
         })
         .build();
