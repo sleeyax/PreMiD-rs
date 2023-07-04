@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Instant};
 
 use axum::routing::get;
 use axum::Server;
@@ -25,11 +25,11 @@ mod types;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let subscriber = FmtSubscriber::builder()
+    /* let subscriber = FmtSubscriber::builder()
         .with_line_number(true)
         .with_max_level(Level::DEBUG)
         .finish();
-    tracing::subscriber::set_global_default(subscriber)?;
+    tracing::subscriber::set_global_default(subscriber)?; */
 
     info!("Starting server on http://{}", DEFAULT_ADDRESS);
 
@@ -56,19 +56,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 let manager = Arc::clone(&manager_clone);
                 socket.on("setActivity", move |_, data: Presence, bin, _| {
-                    println!("setActivity: {:?} {:?}", data, bin);
+                    // println!("setActivity: {:?} {:?}", data, bin);
 
                     let manager = Arc::clone(&manager);
-
-                    let client_id: u64 = data.client_id.parse().unwrap();
 
                     async move {
                         tokio::spawn(async move {
                             let mut manager = manager.lock().await;
-                            if let Some(rpc_client) = manager.get_client_mut(client_id) {
+                            if let Some(rpc_client) = manager.get_client_mut(data.client_id.clone()) {
                                 rpc_client.set_activity(data);
                             } else {
-                                let mut rpc_client = RpcClient::new(client_id);
+                                let mut rpc_client = RpcClient::new(data.client_id.clone());
                                 rpc_client.set_activity(data);
                                 manager.add_client(rpc_client);
                             }
@@ -78,7 +76,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 let manager = Arc::clone(&manager_clone);
                 socket.on("clearActivity", move |_, data: Value, bin, _| {
-                    println!("clearActivity: {:?} {:?}", data, bin);
+                    // println!("clearActivity: {:?} {:?}", data, bin);
 
                     let manager = Arc::clone(&manager);
 

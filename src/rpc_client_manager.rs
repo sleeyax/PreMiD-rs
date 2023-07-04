@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::rpc_client::RpcClient;
 
 pub struct RpcClientManager {
-    rpc_clients: HashMap<u64, RpcClient>,
+    rpc_clients: HashMap<String, RpcClient>,
 }
 
 impl RpcClientManager {
@@ -16,13 +16,14 @@ impl RpcClientManager {
     pub fn add_client(&mut self, rpc_client: RpcClient) {
         println!(
             "[RPC Client Manager] add client instance {} ({} total instances registered)",
-            &rpc_client.client_id,
+            rpc_client.get_client_id(),
             self.rpc_clients.len() + 1
         );
-        self.rpc_clients.insert(rpc_client.client_id, rpc_client);
+        self.rpc_clients
+            .insert(rpc_client.get_client_id(), rpc_client);
     }
 
-    pub fn get_client_mut(&mut self, client_id: u64) -> Option<&mut RpcClient> {
+    pub fn get_client_mut(&mut self, client_id: String) -> Option<&mut RpcClient> {
         self.rpc_clients.get_mut(&client_id)
     }
 

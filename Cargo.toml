@@ -13,4 +13,4 @@ socketioxide = {path = "../socketioxide/socketioxide", features = ["v4"], defaul
 tokio = {version = "1.28.2", features = ["full"] }
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
 tracing = "0.1.37"
-discord-presence = "0.5.15"
+discord-rich-presence = { git = "https://github.com/sardonicism-04/discord-rich-presence.git", rev = "0dc67a5ec617c045131d358b06068887bebcc4f8" }
