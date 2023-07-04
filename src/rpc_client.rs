@@ -2,6 +2,7 @@ use discord_rich_presence::{
     activity::{ActivityBuilder, TimestampsBuilder},
     DiscordIpcClient,
 };
+use tracing::info;
 
 use crate::{
     constants::DEFAULT_CLIENT_ID,
@@ -33,7 +34,7 @@ impl RpcClient {
     }
 
     pub fn set_activity(&mut self, activity: Presence) {
-        println!("[RPC Client {}] set activity", &self.client.get_client_id());
+        info!("client {}: set activity", &self.client.get_client_id());
 
         let mut act = ActivityBuilder::default();
 
@@ -65,10 +66,7 @@ impl RpcClient {
     }
 
     pub fn clear_activity(&mut self) {
-        println!(
-            "[RPC Client {}] clear activity",
-            &self.client.get_client_id()
-        );
+        info!("client {}: clear activity", &self.client.get_client_id());
         self.client.clear_activity().unwrap();
     }
 
@@ -77,7 +75,7 @@ impl RpcClient {
     }
 
     pub fn get_user(&self) -> &DiscordUser {
-        println!("[RPC Client {}] get user", &self.client.get_client_id());
+        info!("client {}: get user", &self.client.get_client_id());
         &self.user
     }
 }

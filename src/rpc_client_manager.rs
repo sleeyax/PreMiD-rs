@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use tracing::info;
+
 use crate::rpc_client::RpcClient;
 
 pub struct RpcClientManager {
@@ -14,8 +16,8 @@ impl RpcClientManager {
     }
 
     pub fn add_client(&mut self, rpc_client: RpcClient) {
-        println!(
-            "[RPC Client Manager] add client instance {} ({} total instances registered)",
+        info!(
+            "add client instance {} ({} total instances registered)",
             rpc_client.get_client_id(),
             self.rpc_clients.len() + 1
         );
