@@ -9,7 +9,7 @@ edition = "2021"
 axum = "0.6.18"
 serde = { version = "1.0.164",  features = ["derive"] }
 serde_json = "1.0.96"
-socketioxide = {path = "../socketioxide/socketioxide", features = ["v4"], default-features = false}
+socketioxide = {git = "https://github.com/sleeyax/socketioxide.git", rev = "e45263bddf82f7578617eeac98ba2fe05ca417ed", features = ["v4"], default-features = false}
 tokio = {version = "1.28.2", features = ["full"] }
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
 tracing = "0.1.37"
