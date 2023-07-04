@@ -2,18 +2,24 @@ use axum::routing::get;
 use axum::Server;
 use serde_json::Value;
 use socketioxide::{Namespace, SocketIoLayer};
-use std::sync::{Arc, Mutex};
+use std::{
+    default,
+    sync::{Arc, Mutex},
+};
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 
 use crate::{
-    constants::{APP_VERSION, DISCORD_APP_ID, REPO_URL},
+    constants::{APP_VERSION, DEFAULT_ADDRESS, DEFAULT_CLIENT_ID, REPO_URL},
+    rpc_client::RpcClient,
+    rpc_client_manager::RpcClientManager,
     settings::Settings,
     types::Presence,
 };
 
 mod constants;
 mod rpc_client;
+mod rpc_client_manager;
 mod settings;
 mod types;
 
@@ -25,16 +31,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .finish();
     tracing::subscriber::set_global_default(subscriber)?;
 
-    let rpc_client = Arc::new(Mutex::new(rpc_client::RpcClient::new(DISCORD_APP_ID)));
+    let rpc_client_manager = Arc::new(Mutex::new(RpcClientManager::new()));
 
-    let addr = "127.0.0.1:3020";
+    info!("Starting server on http://{}", DEFAULT_ADDRESS);
 
-    info!("Starting server on http://{}", addr);
-
-    let rpc_client_clone = Arc::clone(&rpc_client);
+    let rpc_client_manager_clone = Arc::clone(&rpc_client_manager);
     let ns = Namespace::builder()
         .add("/", move |socket| {
-            let rpc_client = Arc::clone(&rpc_client_clone);
+            let rpc_client_manager = Arc::clone(&rpc_client_manager_clone);
 
             async move {
                 println!("Socket connected with id: {}", socket.sid);
@@ -51,40 +55,47 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     println!("settingUpdate: {:?} {:?}", data, bin);
                 });
 
-                let rpc_client_clone = Arc::clone(&rpc_client);
+                let rpc_client_manager_clone = Arc::clone(&rpc_client_manager);
                 socket.on("setActivity", move |_, data: Presence, bin, _| {
-                    let rpc_client_clone = Arc::clone(&rpc_client_clone);
+                    println!("setActivity: {:?} {:?}", &data, bin);
+
+                    let client_id: u64 = data.client_id.parse().unwrap();
+
+                    let rpc_client_manager_clone = Arc::clone(&rpc_client_manager_clone);
 
                     async move {
-                        println!("setActivity: {:?} {:?}", &data, bin);
-                        rpc_client_clone.lock().unwrap().set_activity(data);
+                        let mut rpc_client_manager = rpc_client_manager_clone.lock().unwrap();
+                        if let Some(rpc_client) = rpc_client_manager.get_client_mut(client_id) {
+                            rpc_client.set_activity(data);
+                        } else {
+                            let mut rpc_client = RpcClient::new(client_id);
+                            rpc_client.set_activity(data);
+                            rpc_client_manager.add_client_instance(rpc_client);
+                        }
                     }
                 });
 
-                socket.on("clearActivity", |_, data: Value, bin, _| async move {
+                let rpc_client_manager_clone = Arc::clone(&rpc_client_manager);
+                socket.on("clearActivity", move |_, data: Value, bin, _| {
                     println!("clearActivity: {:?} {:?}", data, bin);
+
+                    let rpc_client_manager_clone = Arc::clone(&rpc_client_manager_clone);
+
+                    async move {
+                        for rpc_client in rpc_client_manager_clone.lock().unwrap().get_clients_mut()
+                        {
+                            rpc_client.clear_activity();
+                        }
+                    }
                 });
 
-                let rpc_client_clone = Arc::clone(&rpc_client);
+                // TODO: spawn in separate thread for performance?
                 socket
-                    .emit("discordUser", rpc_client_clone.lock().unwrap().get_user())
+                    .emit("discordUser", RpcClient::default().get_user())
                     .ok();
             }
         })
         .build();
-
-    // TODO: fix this?
-    /* let rpc_client_clone = Arc::clone(&rpc_client);
-    ctrlc::set_handler(move || {
-        println!("[RPC Client] Exiting");
-        rpc_client_clone.lock().unwrap().clear_activity();
-        std::process::exit(0);
-    })
-    .unwrap(); */
-
-    /*  let rpc_client_clone = Arc::clone(&rpc_client);
-    rpc_client_clone.lock().unwrap().join_thread(); */
-    // --
 
     let app = axum::Router::new()
         .route(
@@ -98,7 +109,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .layer(SocketIoLayer::new(ns));
 
-    Server::bind(&addr.parse().unwrap())
+    Server::bind(&DEFAULT_ADDRESS.parse().unwrap())
         .serve(app.into_make_service())
         .await?;
 

@@ -1,13 +1,14 @@
-use std::thread::JoinHandle;
-
 use discord_presence::{Client, Event};
 use serde_json::Value;
 
-use crate::types::{DiscordUser, Presence};
+use crate::{
+    constants::DEFAULT_CLIENT_ID,
+    types::{DiscordUser, Presence},
+};
 
 pub struct RpcClient {
+    pub client_id: u64,
     client: Client,
-    client_thread: JoinHandle<()>,
     user: DiscordUser,
 }
 
@@ -15,15 +16,15 @@ impl RpcClient {
     pub fn new(client_id: u64) -> Self {
         let mut client = Client::new(client_id);
 
-        client.on_ready(|ctx| {
-            println!("[RPC Client] Ready: {:?}", ctx.event);
+        client.on_ready(move |ctx| {
+            println!("[RPC Client {}] Ready: {:?}", &client_id, ctx.event);
         });
 
-        client.on_error(|ctx| {
-            println!("[RPC Client] Error: {:?}", ctx.event);
+        client.on_error(move |ctx| {
+            println!("[RPC Client {}] Error: {:?}", &client_id, ctx.event);
         });
 
-        let client_thread = client.start();
+        let _ = client.start();
 
         let ctx = client.block_until_event(Event::Ready).unwrap();
 
@@ -38,16 +39,16 @@ impl RpcClient {
 
         Self {
             client,
+            client_id,
             user,
-            client_thread,
         }
     }
 
     pub fn set_activity(&mut self, activity: Presence) {
+        println!("[RPC Client {}] set activity", &self.client_id);
         self.client
             .set_activity(|act| {
                 // TODO: add more fields
-
                 let mut act = act;
 
                 if let Some(details) = activity.presence_data.details {
@@ -83,18 +84,21 @@ impl RpcClient {
                 act
             })
             .unwrap();
-        println!("[RPC Client set] activity");
     }
 
     pub fn clear_activity(&mut self) {
+        println!("[RPC Client {}] clear activity", &self.client_id);
         self.client.clear_activity().unwrap();
     }
 
     pub fn get_user(&self) -> &DiscordUser {
+        println!("[RPC Client {}] get user", &self.client_id);
         &self.user
     }
+}
 
-    pub fn join_thread(self) {
-        self.client_thread.join().unwrap();
+impl Default for RpcClient {
+    fn default() -> Self {
+        Self::new(DEFAULT_CLIENT_ID)
     }
 }

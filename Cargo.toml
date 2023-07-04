@@ -14,4 +14,3 @@ tokio = {version = "1.28.2", features = ["full"] }
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
 tracing = "0.1.37"
 discord-presence = "0.5.15"
-ctrlc = "3.4.0"
