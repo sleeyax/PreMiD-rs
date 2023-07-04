@@ -16,6 +16,12 @@ Rust backend vs Electron-based backend:
 | Tray icon           | No           | Yes              |
 | Auto updater        | No           | Yes              |
 
+## Installation
+
+1. Download the [latest release](https://github.com/sleeyax/PreMiD-rs/releases/latest).
+2. (optional) Add the program to startup so it launches on PC boot/login.
+3. Execute the program from a terminal/cmd. You won't see any output by default. Specify an environment variable [below](#commands) for more output options.
+
 ## Missing features
 Known missing features:
 
