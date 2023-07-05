@@ -27,10 +27,10 @@ pub struct PresenceData {
     pub details: Option<String>,
 
     #[serde(rename = "startTimestamp")]
-    pub start_timestamp: Option<u64>,
+    pub start_timestamp: Option<i64>,
 
     #[serde(rename = "endTimestamp")]
-    pub end_timestamp: Option<u64>,
+    pub end_timestamp: Option<i64>,
 
     #[serde(rename = "largeImageKey")]
     pub large_image_key: Option<String>,
@@ -50,10 +50,10 @@ pub struct PresenceData {
     pub party_id: Option<String>,
 
     #[serde(rename = "partySize")]
-    pub party_size: Option<u32>,
+    pub party_size: Option<i32>,
 
     #[serde(rename = "partyMax")]
-    pub party_max: Option<u32>,
+    pub party_max: Option<i32>,
 
     #[serde(rename = "matchSecret")]
     pub match_secret: Option<String>,
