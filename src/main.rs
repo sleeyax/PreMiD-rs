@@ -61,6 +61,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     async move {
                         tokio::spawn(async move {
                             let mut manager = manager.lock().await;
+
+                            if let Some(hidden) = data.hidden {
+                                if hidden {
+                                    if let Some(rpc_client) =
+                                        manager.get_client_mut(data.client_id.clone())
+                                    {
+                                        rpc_client.clear_activity();
+                                    }
+                                }
+                            }
+
                             if let Some(rpc_client) = manager.get_client_mut(data.client_id.clone())
                             {
                                 rpc_client.set_activity(data);
