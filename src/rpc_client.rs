@@ -158,10 +158,21 @@ impl RpcClient {
         info!("client {}: get user", &self.client.get_client_id());
         &self.user
     }
+
+    pub fn close(&mut self) -> bool {
+        info!("client {}: close", &self.client.get_client_id());
+        self.client.disconnect().is_ok()
+    }
 }
 
 impl Default for RpcClient {
     fn default() -> Self {
         Self::new(DEFAULT_CLIENT_ID.into())
+    }
+}
+
+impl Drop for RpcClient {
+    fn drop(&mut self) {
+        self.close();
     }
 }

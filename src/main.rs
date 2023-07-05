@@ -99,9 +99,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 });
 
                 tokio::spawn(async move {
-                    socket
-                        .emit("discordUser", RpcClient::default().get_user())
-                        .ok();
+                    let rpc_client = RpcClient::default();
+                    socket.emit("discordUser", rpc_client.get_user()).ok();
+                    drop(rpc_client);
                 });
             }
         })
