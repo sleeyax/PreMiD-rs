@@ -4,7 +4,10 @@ use std::sync::Arc;
 use axum::routing::get;
 use axum::Server;
 use serde_json::Value;
-use socketioxide::{Namespace, SocketIoLayer};
+use socketioxide::{
+    extract::{Bin, Data, SocketRef},
+    SocketIo,
+};
 
 use tokio::sync::Mutex;
 use tracing::{debug, info};
@@ -14,7 +17,6 @@ use crate::{
     log::setup_logger,
     rpc_client::RpcClient,
     rpc_client_manager::RpcClientManager,
-    settings::Settings,
     types::Presence,
 };
 
@@ -33,27 +35,36 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let manager = Arc::new(Mutex::new(RpcClientManager::new()));
 
-    let ns = Namespace::builder()
-        .add("/", move |socket| {
-            debug!("Socket connected with id: {}", socket.sid);
+    let (layer, io) = SocketIo::new_layer();
 
-            let manager_clone = Arc::clone(&manager);
+    io.ns("/", move |socket: SocketRef, _: Data<Value>| {
+        debug!("Socket connected with id: {}", socket.id);
 
-            async move {
-                socket.on("getVersion", |socket, data: Value, bin, _| async move {
+        let manager_clone = Arc::clone(&manager);
+
+        async move {
+            socket.on(
+                "getVersion",
+                |socket: SocketRef, Data::<Value>(data), Bin(bin)| async move {
                     debug!("getVersion: {:?} {:?}", data, bin);
                     socket
                         .bin(bin)
                         .emit("receiveVersion", APP_VERSION.to_string())
                         .ok();
-                });
+                },
+            );
 
-                socket.on("settingUpdate", |_, data: Settings, bin, _| async move {
+            socket.on(
+                "settingUpdate",
+                |_: SocketRef, Data::<Value>(data), Bin(bin)| async move {
                     debug!("settingUpdate: {:?} {:?}", data, bin);
-                });
+                },
+            );
 
-                let manager = Arc::clone(&manager_clone);
-                socket.on("setActivity", move |_, data: Presence, bin, _| {
+            let manager = Arc::clone(&manager_clone);
+            socket.on(
+                "setActivity",
+                move |_: SocketRef, Data::<Presence>(data), Bin(bin)| {
                     debug!("setActivity: {:?} {:?}", data, bin);
 
                     let manager = Arc::clone(&manager);
@@ -82,10 +93,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             }
                         });
                     }
-                });
+                },
+            );
 
-                let manager = Arc::clone(&manager_clone);
-                socket.on("clearActivity", move |_, data: Value, bin, _| {
+            let manager = Arc::clone(&manager_clone);
+            socket.on(
+                "clearActivity",
+                move |_: SocketRef, Data::<Value>(data), Bin(bin)| {
                     debug!("clearActivity: {:?} {:?}", data, bin);
 
                     let manager = Arc::clone(&manager);
@@ -96,16 +110,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             manager.clear_all_activities();
                         });
                     }
-                });
+                },
+            );
 
-                tokio::spawn(async move {
-                    let rpc_client = RpcClient::default();
-                    socket.emit("discordUser", rpc_client.get_user()).ok();
-                    drop(rpc_client);
-                });
-            }
-        })
-        .build();
+            tokio::spawn(async move {
+                let rpc_client = RpcClient::default();
+                socket.emit("discordUser", rpc_client.get_user()).ok();
+                drop(rpc_client);
+            });
+        }
+    });
 
     let app = axum::Router::new()
         .route(
@@ -117,7 +131,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 )
             }),
         )
-        .layer(SocketIoLayer::new(ns));
+        .layer(layer);
 
     Server::bind(&DEFAULT_ADDRESS.parse().unwrap())
         .serve(app.into_make_service())
