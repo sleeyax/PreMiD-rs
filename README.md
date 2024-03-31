@@ -3,7 +3,8 @@ Alternative [PreMiD](https://premid.app/) backend written in Rust. Ditch that bl
 
 Please note that this program doesn't include any bells and whistles, it just provides Discord rich presence.
 
-> :warning: This project has not yet reached a stable release. Use at your own discretion.
+> [!WARNING]  
+> This project uses relateively unstable libraries. It should work but use at your own discretion until we publish a stable release.
 
 ## Comparison
 Rust backend vs Electron-based backend:
